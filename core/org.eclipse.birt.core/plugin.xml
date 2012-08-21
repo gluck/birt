@@ -5,4 +5,5 @@
      <extension-point id="FactoryService" name="FactoryService" schema="schema/FactoryService.exsd"/>
      <extension-point id="ScriptFunctionService" name="ScriptFunctionService" schema="schema/ScriptFunctionService.exsd"/>
      <extension-point id="ScriptEngineFactory" name="ScriptEngineFactory" schema="schema/ScriptEngineFactory.exsd"/>
+     <extension-point id="SerializationHelper" name="SerializationHelper" schema="schema/SerializationHelper.exsd"/>
 </plugin>
