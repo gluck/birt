@@ -13,14 +13,20 @@ package org.eclipse.birt.report.engine.javascript;
 
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.logging.Logger;
-
 import org.eclipse.birt.core.exception.BirtException;
 import org.eclipse.birt.core.exception.CoreException;
+import org.eclipse.birt.core.framework.IConfigurationElement;
+import org.eclipse.birt.core.framework.IExtension;
+import org.eclipse.birt.core.framework.IExtensionPoint;
+import org.eclipse.birt.core.framework.IExtensionRegistry;
+import org.eclipse.birt.core.framework.Platform;
 import org.eclipse.birt.core.i18n.ResourceConstants;
 import org.eclipse.birt.core.script.CoreJavaScriptInitializer;
 import org.eclipse.birt.core.script.CoreJavaScriptWrapper;
@@ -39,7 +45,6 @@ import org.mozilla.javascript.Script;
 import org.mozilla.javascript.Scriptable;
 import org.mozilla.javascript.ScriptableObject;
 import org.mozilla.javascript.WrapFactory;
-
 import com.ibm.icu.util.TimeZone;
 import com.ibm.icu.util.ULocale;
 
@@ -49,6 +54,10 @@ import com.ibm.icu.util.ULocale;
  */
 public class JavascriptEngine implements IScriptEngine, IDataScriptEngine
 {
+    //The extension constants
+    private static final String EXTENSION_POINT = "org.eclipse.birt.report.engine.script.javascript.WrapFactory";
+    private static final String ELEMENT_FACTORY = "Factory";
+    private static final String ATTRIBUTE_FACTORYCLASS = "factoryclass";
 
 	/**
 	 * for logging
@@ -70,6 +79,8 @@ public class JavascriptEngine implements IScriptEngine, IDataScriptEngine
 	private Map<String, Object> propertyMap = new HashMap<String, Object>( );
 
 	private JavascriptEngineFactory factory;
+
+    private List<IJavascriptWrapper> wrappers;
 
 	static
 	{
@@ -139,24 +150,73 @@ public class JavascriptEngine implements IScriptEngine, IDataScriptEngine
 			throw new BirtException( );
 		}
 	}
+	
+	
+    private void initWrappers( )
+    {
+        if ( wrappers != null )
+            return;
+
+        wrappers = new ArrayList<IJavascriptWrapper>( );
+        wrappers.add(new CoreJavaScriptWrapper());
+        
+        //Find the extension point.
+        IExtensionRegistry extReg = Platform.getExtensionRegistry( );
+        IExtensionPoint extPoint = extReg.getExtensionPoint( EXTENSION_POINT );
+
+        if ( extPoint == null )
+            return;
+
+        //Fetch all extensions
+        IExtension[] exts = extPoint.getExtensions( );
+        if ( exts == null )
+            return;
+
+        //populate category map as per extension.
+        for ( int e = 0; e < exts.length; e++ )
+        {
+            try
+            {
+                IConfigurationElement[] configElems = exts[e].getConfigurationElements( );
+                if ( configElems == null )
+                    continue;
+
+                for ( int i = 0; i < configElems.length; i++ )
+                {
+                    // for element Factory
+                    if ( configElems[i].getName( ).equals( ELEMENT_FACTORY ) && configElems[i].getAttribute( ATTRIBUTE_FACTORYCLASS ) != null)
+                    {
+                        IJavascriptWrapper factory = (IJavascriptWrapper) configElems[i].createExecutableExtension( ATTRIBUTE_FACTORYCLASS );
+                        wrappers.add(factory);
+                    }
+                }
+            }
+            catch ( BirtException ex )
+            {
+            }
+        }
+    }
+
 
 	private void initWrapFactory( )
 	{
-		WrapFactory wrapFactory = new WrapFactory( ) {
-
-			protected IJavascriptWrapper coreWrapper = new CoreJavaScriptWrapper( );
-
+	    initWrappers();
+	    
+	    WrapFactory wrapFactory = new WrapFactory( ) {
 			/**
 			 * wrapper an java object to javascript object.
 			 */
 			public Object wrap( Context cx, Scriptable scope, Object obj,
 					Class staticType )
 			{
-				Object object = coreWrapper.wrap( cx, scope, obj, staticType );
-				if ( object != obj )
-				{
-					return object;
-				}
+			    for (IJavascriptWrapper wrapper : wrappers)
+                {
+			        Object object = wrapper.wrap( cx, scope, obj, staticType );
+			        if ( object != obj )
+			        {
+			            return object;
+			        }
+                }
 				return super.wrap( cx, scope, obj, staticType );
 			}
 		};
