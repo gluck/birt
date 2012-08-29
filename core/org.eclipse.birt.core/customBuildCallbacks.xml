@@ -50,6 +50,8 @@
 				<include name="org/eclipse/birt/core/script/functionservice/*.class" />
 				<include name="org/eclipse/birt/core/script/functionservice/impl/*.class" />
 				<include name="org/eclipse/birt/core/util/IOUtil*.class" />
+                <include name="org/eclipse/birt/core/util/Serializers*.class" />
+                <include name="org/eclipse/birt/core/util/ISerializationHelper*.class" />
 				<exclude name="**/*Test.class" />
 			</fileset>
 		</jar>
