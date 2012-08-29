@@ -13,15 +13,15 @@ package org.eclipse.birt.report.engine.parser;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintWriter;
+import java.io.Writer;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
-
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
-
 import org.w3c.dom.Comment;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -111,6 +111,51 @@ public class HTMLTextParser
 	/** whether use the supportedTags map */
 	private boolean supportAllTags = true;
 	
+	private static class TidyLogWriter extends Writer
+	{
+        private final StringBuilder buffer = new StringBuilder();
+        
+        @Override
+        public void write(char[] cbuf, int off, int len) throws IOException
+        {
+            buffer.append(cbuf, off, len);
+        }
+        
+        @Override
+        public void flush() throws IOException
+        {
+        }
+
+        private void flushLogBuffer()
+        {
+            if (buffer.length() > 0)
+            {
+                logger.log(Level.SEVERE, buffer.toString().replaceAll("[\\r\\n]+", " ").trim());
+                buffer.setLength(0);
+            }
+        }
+
+        @Override
+        public void close() throws IOException
+        {
+            flushLogBuffer();
+        }
+	}
+	
+    private static class TidyLogPrintWriter extends PrintWriter
+    {
+        private TidyLogPrintWriter()
+        {
+            super(new TidyLogWriter(), false);
+        }
+        
+        @Override
+        public void println()
+        {
+            ((TidyLogWriter)out).flushLogBuffer();
+        }
+    }
+	
 	/**
 	 * Constructor
 	 *  
@@ -118,6 +163,7 @@ public class HTMLTextParser
 	public HTMLTextParser( )
 	{
 		tidy.setConfigurationFromProps( props );
+		tidy.setErrout(new TidyLogPrintWriter());
 		supportAllTags = true;
 	}
 
