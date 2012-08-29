@@ -304,7 +304,7 @@ public class JavascriptEngine implements IScriptEngine, IDataScriptEngine
 		return new CompiledJavascript( id, lineNumber, script, scriptObject );
 	}
 
-	private JavascriptContext createJsContext( ScriptContext context )
+	private JavascriptContext createJsContext( final ScriptContext context )
 	{
 		ScriptContext parent = context.getParent( );
 		Scriptable parentJsScope = global;
@@ -327,6 +327,18 @@ public class JavascriptEngine implements IScriptEngine, IDataScriptEngine
 		if ( parent == null )
 		{
 			cachedScript.exec( this.context, jsScope );
+            IScriptFunctionContext functionContext = new IScriptFunctionContext( ) {
+                public Object findProperty( String name )
+                {
+                    Object ret = propertyMap.get( name );
+                    if (ret != null)
+                    {
+                        return ret;
+                    }
+                    return context.getAttributes().get(name);
+                }
+            };
+            jsScope.put(org.eclipse.birt.core.script.functionservice.IScriptFunctionContext.FUNCTION_BEAN_NAME, jsScope, Context.javaToJS( functionContext, jsScope ));
 		}
 		Map<String, Object> attrs = context.getAttributes( );
 		for ( Entry<String, Object> entry : attrs.entrySet( ) )
